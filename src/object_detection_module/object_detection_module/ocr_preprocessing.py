@@ -7,7 +7,7 @@ import cv2
 import re
 from collections import Counter
 
-class OCRProcessingNode(Node):
+class OCRProcessingNode(Node): # OCR Preprocessing # 필요하지 않다 지금
     def __init__(self):
         super().__init__('ocr_processing_node')
         self.subscription = self.create_subscription(Image, '/roi_image', self.listener_callback, 10)

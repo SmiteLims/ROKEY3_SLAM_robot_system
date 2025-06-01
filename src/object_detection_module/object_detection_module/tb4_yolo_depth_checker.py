@@ -22,7 +22,7 @@ WINDOW_NAME = "YOLO + OCR Distance View"
 DEPTH_SCALE = 1.17  # 🆕 보정 계수
 # ========================
 
-class YoloOCRDepthChecker(Node):
+class YoloOCRDepthChecker(Node): # 터틀봇 차량인식이랑 번호판 인식
     def __init__(self):
         super().__init__('yolo_ocr_depth_checker')
         self.get_logger().info("YOLO + OCR + Depth 노드 시작")
@@ -42,22 +42,22 @@ class YoloOCRDepthChecker(Node):
         self.lock = threading.Lock()
         self.ocr_done = False
 
-        self.create_subscription(CameraInfo, CAMERA_INFO_TOPIC, self.camera_info_callback, 1)
-        self.create_subscription(Image, RGB_TOPIC, self.rgb_callback, 1)
+        self.create_subscription(CameraInfo, CAMERA_INFO_TOPrgb_callbackIC, self.camera_info_callback, 1)
+        self.create_subscription(Image, RGB_TOPIC, self., 1)
         self.create_subscription(Image, DEPTH_TOPIC, self.depth_callback, 1)
 
         threading.Thread(target=self.processing_loop, daemon=True).start()
 
-    def camera_info_callback(self, msg):
+    def camera_info_callback(self, msg): # 카메라 제대로 작동하는지 체크용
         if self.K is None:
             self.K = np.array(msg.k).reshape(3, 3)
             self.get_logger().info("카메라 내부 파라미터 수신 완료")
 
-    def rgb_callback(self, msg):
+    def rgb_callback(self, msg): # RGB 카메라 이미지 수신
         with self.lock:
             self.rgb_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
 
-    def depth_callback(self, msg):
+    def depth_callback(self, msg): # Depth 이미지 수신
         with self.lock:
             self.depth_image = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
 
@@ -68,6 +68,8 @@ class YoloOCRDepthChecker(Node):
             with self.lock:
                 if self.rgb_image is None or self.depth_image is None or self.K is None:
                     continue
+
+                # 
                 rgb = self.rgb_image.copy()
                 depth = self.depth_image.copy()
 
@@ -138,6 +140,7 @@ class YoloOCRDepthChecker(Node):
 # ========================
 # 메인 함수
 # ========================
+
 def main():
     rclpy.init()
     node = YoloOCRDepthChecker()
