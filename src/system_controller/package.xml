@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>system_controller</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="smitelims15@gmail.com">smite</maintainer>
+  <license>TODO: License declaration</license>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <!-- 빌드 도구 -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ROS2 노드 관련 -->
+  <build_depend>rclpy</build_depend>
+  <exec_depend>rclpy</exec_depend>
+
+  <!-- 표준 메시지 -->
+  <build_depend>std_msgs</build_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <!-- 커스텀 메시지 (직접 만든 msg 정의한 패키지) -->
+  <build_depend>vehicle_info</build_depend>
+  <exec_depend>vehicle_info</exec_depend>
+
+  <build_depend>vehicle_alert</build_depend>
+  <exec_depend>vehicle_alert</exec_depend>
+
+  <!-- 외부 Python 패키지 (pip로 설치해야 함) -->
+  <exec_depend>python3-requests</exec_depend>
+
+  <!-- 메시지 정의를 포함할 경우 -->
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <!-- 메시지에 시간 사용 시 -->
+  <build_depend>builtin_interfaces</build_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+
+  
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
