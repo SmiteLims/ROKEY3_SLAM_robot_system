@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'yolo_detection_cam = object_detection_module.yolo_detection_cam:main',
+            'yolo_OCR_depth_checker = object_detection_module.yolo_OCR_depth_checker:main',
         ],
     },
 )

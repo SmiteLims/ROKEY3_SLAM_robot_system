@@ -2,7 +2,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor  # 병렬 콜백 처리를 위한 executor
 from std_msgs.msg import Int32                     # 정수 메시지 타입 (표준)
-from vehicle_info.msg import VehicleInfo, VehicleAlert  # 커스텀 메시지 타입 (차량 정보 및 경고)
+from vehicle_info.msg import VehicleInfo
+from vehicle_alert.msg import VehicleAlert  # 커스텀 메시지 타입 (차량 정보 및 경고)
 import requests  # FastAPI API 호출을 위한 HTTP 라이브러리
 
 
