@@ -1,142 +1,234 @@
-# ROS2 Python 라이브러리 import
+import cv2
+from ultralytics import YOLO
+import easyocr
+import time
+import psutil
+import pandas as pd
+import os
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-import time
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32  # 상태 토픽
+from threading import Thread, Lock
+from collections import deque
 
-# ROS2 이미지 메시지 타입과 OpenCV-ROS 브리지
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-
-# YOLO 모델 로드 (ultralytics 라이브러리 사용)
-from ultralytics import YOLO
-import cv2
-import numpy as np
-
-
-# YOLO 기반 객체 감지 노드 클래스 정의
-class YOLODetectionNode(Node): # 사각지대 CCTV 노드
+class YOLOOCRCameraNode(Node):
     def __init__(self):
-        super().__init__('yolo_detection_node') # 노드 이름 설정
+        super().__init__('yolo_ocr_camera_node')
 
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
-        )
+        # YOLO 모델 설정
+        self.model_path = '/home/rokey/rokey_ws/src/rokey_pjt/rokey_pjt/config/best.pt'
+        self.model = YOLO(self.model_path)
 
-        # ROI 이미지를 퍼블리시할 퍼블리셔 생성
-        # self.publisher_ = self.create_publisher(Image, '/roi_image', 10) # QoS 다시 설정 예정
-        self.publisher_ = self.create_publisher(Image, '/roi_image', qos_profile)
-        
-        # 상태 퍼블리셔 (객체가 사라지면 1 발행)
-        self.status_publisher_ = self.create_publisher(Int32, '/status', 10)
-        self.last_detect_time = time.time()  # 초기화
-        self.status_sent = False  # 중복 발행 방지
+        # 결과 저장 폴더
+        self.output_dir = './output'
+        if os.path.exists(self.output_dir):
+            os.system(f'rm -rf {self.output_dir}')
+        os.makedirs(self.output_dir)
 
-        # OpenCV와 ROS 메시지 간 변환을 위한 브리지 객체
-        self.bridge = CvBridge()
-
-        # 학습된 YOLO 모델 로드 (.pt 파일 경로)
-        self.model = YOLO('/home/rokey/rokey_ws/src/rokey_pjt/rokey_pjt/config/best.pt')
-
-        # USB 또는 기타 카메라 장치 열기 (장치 번호 2번)
-        self.cap = cv2.VideoCapture(2)
-
-        # 감지할 타겟 클래스 ID (예: 0번이 자동차)
+        # 타겟 클래스
         self.target_class_id = 0
+        self.class_names = {0: "car"}
 
-        # 클래스 ID에 대한 이름 매핑
-        self.class_names = {0: 'car'}
+        # OCR Reader
+        self.reader = easyocr.Reader(['ko'])
 
-        # 카메라 오픈 실패 시 에러 출력 후 노드 종료
+        # 카메라 설정
+        self.cap = cv2.VideoCapture(2)  # USB 카메라
         if not self.cap.isOpened():
-            self.get_logger().error("Camera open failed")
+            self.get_logger().error("USB 카메라 열기 실패.")
             rclpy.shutdown()
             return
 
-        self.get_logger().info("YOLO Detection Node Started")
+        # 퍼포먼스 측정
+        self.warmup_time = 5
+        self.measure_frames = 100
+        self.measure = False
+        self.frame_skip = 3  # 매 프레임마다 추론
+        self.frame_count = 0
+        self.measuring = False
+        self.start_time = time.time()
+        self.measure_data = []
+        self.csv_output = []
+        self.confidences = []
 
-        # 주기적으로 실행될 타이머 콜백 (10Hz → 0.1초마다 실행)
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        # 멀티스레드용
+        self.lock = Lock()
+        self.annotated_frame = deque(maxlen=1)
+        self.running = True
 
-        # 결과를 보여줄 창 설정 (수동 사이즈 조정 가능하게)
-        self.window_name = "YOLO Detection"
-        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+        # OCR 1회만 수행
+        self.ocr_once = True
+        self.ocr_done = False
 
-    # 타이머 콜백 함수: 주기적으로 프레임을 받아와 객체 탐지 수행
-    def timer_callback(self):
-        # 프레임 캡처 시도
-        ret, frame = self.cap.read()
-        if not ret:
-            self.get_logger().warn("Frame capture failed")
-            return
+        # 감지 상태 관리
+        self.last_detect_time = time.time()
+        self.status_sent = False
 
-        # YOLO 모델을 사용하여 객체 감지 수행
-        results = self.model(frame, stream=False)
-        
-        object_detected = False  # 매 타이머마다 초기화
+        # ROS2 퍼블리셔
+        self.status_publisher_ = self.create_publisher(Int32, '/robot1/status', 10)
 
-        for r in results:
-            for box in r.boxes:
-                cls = int(box.cls[0])  # 감지된 객체 클래스 ID
-                if cls == self.target_class_id:  # 관심 있는 클래스만 처리
-                    object_detected = True  # 감지되면 True
-                    self.last_detect_time = time.time()  # 시간 업데이트
-                    self.status_sent = False  # 다시 감지되었으니 초기화
+        # self.get_logger().info("YOLO OCR Camera Node Initialized.")
 
-                    # 경계 상자 좌표 가져오기
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    # ROI(관심 영역) 잘라내기
-                    roi = frame[y1:y2, x1:x2]
+        # YOLO 추론 스레드 시작
+        self.yolo_thread = Thread(target=self.yolo_loop)
+        self.yolo_thread.start()
 
-                    if roi.size == 0:
-                        self.get_logger().warn("Empty ROI, skipping...")
-                        continue
+        # 메인 루프 (GUI)
+        self.run_loop()
 
-                    # ROI를 2배 확대 (보여주기 용도)
-                    roi_enlarged = cv2.resize(roi, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+    def yolo_loop(self):
+        while self.running and rclpy.ok():
+            ret, frame = self.cap.read()
+            if not ret:
+                self.get_logger().warn("프레임 수신 실패")
+                continue
 
-                    # ROS 이미지 메시지로 변환 후 퍼블리시
-                    roi_msg = self.bridge.cv2_to_imgmsg(roi_enlarged, encoding='bgr8')
-                    self.publisher_.publish(roi_msg)
+            now = time.time()
+            if not self.measuring and now - self.start_time >= self.warmup_time:
+                # self.get_logger().info("[측정 시작]")
+                self.measuring = True
 
-                    # 디버깅 용도: 화면에 경계 상자와 클래스 이름 표시
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    label = self.class_names.get(cls, f"class_{cls}")
-                    cv2.putText(frame, label, (x1, y1 - 10),
+            if self.frame_count % self.frame_skip == 0:
+                frame_start = time.perf_counter()
+
+                results = self.model(frame, stream=False, conf=0.6,verbose=False)
+
+                frame_time = time.perf_counter() - frame_start
+                cpu_percent = psutil.cpu_percent(interval=None)
+
+                new_detections = []
+                object_detected = False
+                object_count = 0
+
+                for r in results:
+                    for box in r.boxes:
+                        cls = int(box.cls[0])
+                        if cls != self.target_class_id:
+                            continue
+
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        confidence = round(float(box.conf[0]), 2)
+                        label = self.class_names.get(cls, f"class_{cls}")
+                        self.confidences.append(confidence)
+
+                        new_detections.append((x1, y1, x2, y2, confidence, label))
+                        self.csv_output.append([x1, y1, x2, y2, confidence, label])
+                        object_detected = True
+                        object_count += 1
+
+                # 3초 이상 감지 안 되면 1 발행
+                if not object_detected and not self.status_sent:
+                    if time.time() - self.last_detect_time > 3.0:
+                        msg = Int32()
+                        msg.data = 1
+                        self.status_publisher_.publish(msg)
+                        self.get_logger().info("No object detected for 3 seconds. Published 1 to /status")
+                        self.status_sent = True
+                        msg.data = 0
+
+                # 감지되면 마지막 감지 시간 업데이트
+                if object_detected:
+                    self.last_detect_time = time.time()
+                    self.status_sent = False
+
+                # 결과 업데이트
+                with self.lock:
+                    self.last_detections = new_detections
+
+                # OCR 1회 수행
+                if not self.ocr_done and self.ocr_once and new_detections:
+                    for x1, y1, x2, y2, _, _ in new_detections:
+                        roi = frame[y1:y2, x1:x2]
+                        ocr_results = self.reader.readtext(roi)
+                        for i in ocr_results:
+                            text = i[1].strip()
+                            if len(text) < 3 or not any(c.isdigit() for c in text):
+                                continue
+                            ox1 = int(i[0][0][0]) + x1
+                            oy1 = int(i[0][0][1]) + y1
+                            ox2 = int(i[0][2][0]) + x1
+                            oy2 = int(i[0][2][1]) + y1
+                            cv2.rectangle(frame, (ox1, oy1), (ox2, oy2), (0, 0, 255), 2)
+                            cv2.putText(frame, text, (ox1, oy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            # self.get_logger().info(f"[OCR] 인식된 텍스트: {text}")
+                            self.ocr_done = True
+
+                if object_count > 0:
+                    filename = f'frame_{int(time.time())}.jpg'
+                    cv2.imwrite(os.path.join(self.output_dir, filename), frame)
+
+                if self.measuring:
+                    self.measure_data.append({
+                        'frame': self.frame_count,
+                        'frame_time': frame_time,
+                        'cpu_percent': cpu_percent
+                    })
+
+                    if self.measure and len(self.measure_data) >= self.measure_frames:
+                        # self.get_logger().info("[측정 완료]")
+                        self.save_results()
+                        self.running = False
+                        break
+
+            # 프레임 업데이트
+            with self.lock:
+                annotated = frame.copy()
+                for x1, y1, x2, y2, confidence, label in getattr(self, 'last_detections', []):
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(annotated, f"{label}: {confidence}", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                self.annotated_frame.clear()
+                self.annotated_frame.append(annotated)
 
-        # 3초 이상 감지 안 되면 상태 메시지 발행
-        if not object_detected and not self.status_sent:
-            if time.time() - self.last_detect_time > 3.0:
-                msg = Int32()
-                msg.data = 1
-                self.status_publisher_.publish(msg)
-                self.get_logger().info("No object detected for 3 seconds. Published 1 to /status")
-                self.status_sent = True  # 중복 발행 방지
+            self.frame_count += 1
 
-        # 창 사이즈를 현재 프레임에 맞게 조정
-        h, w = frame.shape[:2]
-        cv2.resizeWindow(self.window_name, w, h)
+    def run_loop(self):
+        WINDOW_NAME = "YOLO + OCR"
+        cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
-        # 화면에 프레임 출력
-        cv2.imshow(self.window_name, frame)
+        while rclpy.ok():
+            with self.lock:
+                if len(self.annotated_frame) == 0:
+                    continue
+                frame = self.annotated_frame[-1]
 
-        # 'q' 키를 누르면 종료
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            self.cap.release()
-            cv2.destroyAllWindows()
-            self.get_logger().info("Shutting down node...")
-            rclpy.shutdown()
+            if frame is not None:
+                cv2.imshow(WINDOW_NAME, frame)
 
-# 메인 함수: ROS2 노드 초기화 및 실행
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.running = False
+                break
+
+        self.cap.release()
+        cv2.destroyAllWindows()
+        self.yolo_thread.join()
+        # self.get_logger().info("카메라 종료 및 노드 종료")
+
+    def save_results(self):
+        df = pd.DataFrame(self.measure_data)
+        df['fps'] = 1 / df['frame_time']
+        df.to_csv(os.path.join(self.output_dir, 'performance.csv'), index=False)
+
+        avg_fps = df['fps'].mean()
+        avg_frame_time = df['frame_time'].mean()
+        avg_cpu_percent = df['cpu_percent'].mean()
+
+        # self.get_logger().info("===== 성능 측정 결과 (YOLO 프레임 기준) =====")
+        # self.get_logger().info(f"평균 FPS: {avg_fps:.2f}")
+        # self.get_logger().info(f"평균 프레임 시간: {avg_frame_time:.4f}초")
+        # self.get_logger().info(f"평균 CPU 사용률: {avg_cpu_percent:.2f}%")
+
 def main(args=None):
     rclpy.init(args=args)
-    node = YOLODetectionNode()
-    rclpy.spin(node)  # 노드가 종료될 때까지 루프 실행
+    node = YOLOOCRCameraNode()
+    try:
+        rclpy.spin(node)  # Node가 종료될 때까지 spin
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
-# 스크립트 직접 실행 시 main 호출
 if __name__ == '__main__':
     main()

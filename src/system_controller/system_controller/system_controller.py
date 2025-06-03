@@ -1,110 +1,144 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.executors import MultiThreadedExecutor  # 병렬 콜백 처리를 위한 executor
-from std_msgs.msg import Int32                     # 정수 메시지 타입 (표준)
+from rclpy.executors import MultiThreadedExecutor
+from std_msgs.msg import Int32
 from vehicle_info.msg import VehicleInfo
-from vehicle_alert.msg import VehicleAlert  # 커스텀 메시지 타입 (차량 정보 및 경고)
-import requests  # FastAPI API 호출을 위한 HTTP 라이브러리
+from vehicle_alert.msg import VehicleAlert
+import requests
+from functools import partial
 
 
 class SystemController(Node):
     def __init__(self):
-        super().__init__('system_controller')  # 노드 이름 정의
+        super().__init__('system_controller')
 
-        # /status 토픽 구독 (CCTV에서 객체가 감지되었는지 확인)
-        self.status_sub = self.create_subscription( ############ robot0,1 구분 필요
-            Int32,                # 메시지 타입
-            '/status',           # 구독할 토픽 이름
-            self.status_callback,# 콜백 함수
-            10                   # QoS: 큐 사이즈
-        )
+        # 로봇 ID 목록 (확장 가능)
+        self.robot_ids = ['robot0', 'robot1']
 
-        # /system_alert 토픽 퍼블리셔 (순찰 로봇에 명령 내림)
-        self.alert_pub = self.create_publisher( ############ robot0,1 구분 필요
-            Int32,                # 메시지 타입
-            '/system_alert',      # 퍼블리시할 토픽 이름
-            10
-        )
+        # system_alert용 퍼블리셔 저장
+        self.alert_pubs = {}
 
-        # /vehicle_info 토픽 구독 (차량 번호 및 위치 정보 수신)
+        # event → action 관련: 현재 값 저장 및 퍼블리셔 저장
+        self.event_values = {robot_id: 0 for robot_id in self.robot_ids}
+        self.action_pubs = {}
+
+        # === 각 로봇에 대해 공통 설정 ===
+        for robot_id in self.robot_ids:
+            # /robotX/status 구독 → /robotX/system_alert 퍼블리시
+            self.create_subscription(
+                Int32,
+                f'/{robot_id}/status',
+                partial(self.status_callback, robot_id),
+                10
+            )
+            self.alert_pubs[robot_id] = self.create_publisher(
+                Int32,
+                f'/{robot_id}/system_alert',
+                10
+            )
+
+            # /robotX/event 구독 → /robotX/action 주기적 퍼블리시
+            self.create_subscription(
+                Int32,
+                f'/{robot_id}/event',
+                partial(self.event_callback, robot_id),
+                10
+            )
+            self.action_pubs[robot_id] = self.create_publisher(
+                Int32,
+                f'/{robot_id}/action', # 0 Normal mode, 1 Stop mode
+                10
+            )
+
+            # 1초마다 /robotX/action 퍼블리시
+            self.create_timer(
+                1,
+                partial(self.publish_action, robot_id)
+            )
+
+        # vehicle_info 구독
         self.vehicle_sub = self.create_subscription(
-            VehicleInfo,          # 메시지 타입 (id, location)
-            'vehicle_info',       # 구독할 토픽
+            VehicleInfo,
+            'vehicle_info',
             self.vehicle_info_callback,
             10
         )
 
-        # /vehicle_alert 토픽 퍼블리셔 (DB에 등록되지 않은 차량을 알림)
+        # vehicle_alert 퍼블리셔
         self.vehicle_alert_pub = self.create_publisher(
-            VehicleAlert,         # 메시지 타입 (id, location)
-            'vehicle_alert',      # 퍼블리시할 토픽
+            VehicleAlert,
+            'vehicle_alert',
             10
         )
 
-        # 이미 경고를 보낸 차량 ID는 다시 퍼블리시하지 않도록 기록
+        # 이미 알림 보낸 차량 ID 저장
         self.published_ids = set()
 
-        self.get_logger().info("SystemController node started with multi-topic support")
+        self.get_logger().info("SystemController with EventAction support started")
 
-    # /status 토픽 수신 시 호출되는 콜백
-    def status_callback(self, msg: Int32): ############ robot0,1 구분 필요
-        if msg.data == 1:  # 객체 감지됨
+    # /robotX/status 콜백: 1이 오면 /robotX/system_alert에 1 퍼블리시
+    def status_callback(self, robot_id, msg: Int32):
+        if msg.data == 1:
             alert = Int32()
             alert.data = 1
-            self.alert_pub.publish(alert)  # 순찰 명령 전송
-            self.get_logger().info("Received 1 → Published 1 to /system_alert")
+            self.alert_pubs[robot_id].publish(alert)
+            self.get_logger().info(
+                f"[{robot_id}] Received 1 → Published 1 to /{robot_id}/system_alert"
+            )
 
-    # /vehicle_info 토픽 수신 시 호출되는 콜백
+    # /robotX/event 콜백: 값(0 또는 1)을 저장
+    def event_callback(self, robot_id, msg: Int32):
+        self.event_values[robot_id] = msg.data
+        self.get_logger().info(f"[{robot_id}] Received event: {msg.data}")
+
+    # 1초 주기 타이머 콜백: 저장된 값으로 /robotX/action 퍼블리시
+    def publish_action(self, robot_id):
+        msg = Int32()
+        msg.data = self.event_values[robot_id]
+        self.action_pubs[robot_id].publish(msg)
+        # self.get_logger().info(f"[{robot_id}] Published action: {msg.data}")
+
+    # vehicle_info 콜백: DB에 없는 차량이면 vehicle_alert 퍼블리시
     def vehicle_info_callback(self, msg: VehicleInfo):
         task_id = msg.id
         location = msg.location
 
-        # 이미 퍼블리시한 차량이라면 중복 알림 방지
         if task_id in self.published_ids:
             return
 
         try:
-            # FastAPI로 task_id 존재 여부 확인 요청
-            api_url = f"http://localhost:8000/tasks/{task_id}/exists"
-            res = requests.get(api_url)
-            res.raise_for_status()  # HTTP 에러가 있으면 예외 발생
-            data = res.json()
-            exists = data.get("exists", False)
+            # api_url = f"http://localhost:8000/tasks/{task_id}/exists"
+            # res = requests.get(api_url)
+            # res.raise_for_status()
+            # exists = res.json().get("exists", False)
+            database_temporary = [5482, 1037, 7294, 8610, 3925, 6401, 2178, 9853, 4760, 3549]
 
-            if not exists:
-                # DB에 없는 차량일 경우 vehicle_alert 퍼블리시
+            # if not exists:
+            if task_id not in database_temporary:
                 alert_msg = VehicleAlert()
                 alert_msg.id = task_id
                 alert_msg.location = location
                 self.vehicle_alert_pub.publish(alert_msg)
-
                 self.get_logger().info(
-                    f"[ALERT] Task ID {task_id} not found → Published alert")
-
-                # 중복 퍼블리시 방지용으로 기록
+                    f"[ALERT] Task ID {task_id} not found → Published vehicle_alert"
+                )
                 self.published_ids.add(task_id)
 
         except Exception as e:
-            # FastAPI 호출 실패 시 에러 로그 출력
             self.get_logger().error(f"API call failed: {e}")
-
-    ########### Event 발생 상황 추가 (예정) #############
 
 
 def main(args=None):
     rclpy.init(args=args)
-
     node = SystemController()
-
-    # 병렬 콜백 처리를 위한 MultiThreadedExecutor 사용
     executor = MultiThreadedExecutor()
     executor.add_node(node)
 
     try:
-        executor.spin()  # 노드 실행 (콜백 처리 loop)
+        executor.spin()
     finally:
-        node.destroy_node()  # 종료 시 노드 제거
-        rclpy.shutdown()     # ROS 종료
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

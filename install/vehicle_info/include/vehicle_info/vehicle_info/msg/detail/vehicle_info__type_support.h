@@ -1,0 +1,1 @@
+/home/smite/F2_project/ROKEY3_SLAM_robot_system/build/vehicle_info/rosidl_generator_c/vehicle_info/msg/detail/vehicle_info__type_support.h

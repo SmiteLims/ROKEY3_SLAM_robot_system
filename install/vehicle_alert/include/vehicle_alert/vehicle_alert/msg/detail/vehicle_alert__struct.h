@@ -1,0 +1,1 @@
+/home/smite/F2_project/ROKEY3_SLAM_robot_system/build/vehicle_alert/rosidl_generator_c/vehicle_alert/msg/detail/vehicle_alert__struct.h

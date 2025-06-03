@@ -21,6 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             "system_controller = system_controller.system_controller:main",
+            "system_controller_DB = system_controller.system_controller_DB:main",
+
         ],
     },
 )

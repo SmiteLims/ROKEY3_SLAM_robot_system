@@ -14,7 +14,7 @@ find_package(rosidl_default_generators REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 set(msg_files 
-  "msg/VehicleInfo"
+  "msg/VehicleInfo.msg"
   )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
