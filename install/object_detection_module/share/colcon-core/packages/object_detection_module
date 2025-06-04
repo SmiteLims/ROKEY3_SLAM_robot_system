@@ -1,1 +1,0 @@
-builtin_interfaces:cv_bridge:image_transport:python3-easyocr:python3-numpy:python3-opencv:python3-requests:python3-supervision:python3-ultralytics:rclpy:rosidl_default_runtime:sensor_msgs:std_msgs

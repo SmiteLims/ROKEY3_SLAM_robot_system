@@ -1,1 +1,0 @@
-/home/smite/F2_project/ROKEY3_SLAM_robot_system/build/vehicle_info/ament_cmake_environment_hooks/local_setup.bash

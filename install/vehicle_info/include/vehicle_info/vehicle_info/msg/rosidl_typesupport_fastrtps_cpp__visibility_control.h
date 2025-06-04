@@ -1,1 +1,0 @@
-/home/smite/F2_project/ROKEY3_SLAM_robot_system/build/vehicle_info/rosidl_typesupport_fastrtps_cpp/vehicle_info/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h

@@ -1,1 +1,0 @@
-/home/smite/F2_project/ROKEY3_SLAM_robot_system/build/vehicle_alert/rosidl_typesupport_introspection_cpp/vehicle_alert/msg/detail/vehicle_alert__rosidl_typesupport_introspection_cpp.hpp
