@@ -12,9 +12,9 @@ from ament_index_python.packages import get_package_share_directory
 
 class WaypointMarkerPublisher(Node):
     def __init__(self):
-        super().__init__('path_marker')
+        super().__init__('path_marker1')
 
-        self.pub = self.create_publisher(MarkerArray, '/robot0/waypoint_markers', 10)
+        self.pub = self.create_publisher(MarkerArray, '/robot1/waypoint_markers', 10)
         self.timer = self.create_timer(1.0, self.timer_callback)  # 1Hz
 
         self.frame_id = 'map'
@@ -24,7 +24,7 @@ class WaypointMarkerPublisher(Node):
             yaml_path = os.path.join(
                 get_package_share_directory('rokey_pjt'),
                 'config',
-                'waypoints_test.yaml'
+                'waypoints_1.yaml'
             )
             with open(yaml_path, 'r') as f:
                 data = yaml.safe_load(f)

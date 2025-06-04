@@ -18,7 +18,7 @@ class BFSAndValidatorNode(Node):
             yaml_path = os.path.join(
                 get_package_share_directory('rokey_pjt'),
                 'config',
-                'waypoints_test.yaml'
+                'waypoints_0.yaml'
             )
             with open(yaml_path, 'r') as f:
                 data = yaml.safe_load(f)

@@ -44,7 +44,7 @@ def create_pose(x, y, yaw_deg, navigator):
 
 class WaypointInitialPoseSetter(Node):
     def __init__(self):
-        super().__init__('pose_publisher0')
+        super().__init__('pose_publisher1')
 
         # Nav2 Navigator 생성
         self.navigator = BasicNavigator()
@@ -57,7 +57,7 @@ class WaypointInitialPoseSetter(Node):
             yaml_path = os.path.join(
                 get_package_share_directory('rokey_pjt'),
                 'config',
-                'waypoints_0.yaml'
+                'waypoints_1.yaml'
             )
             with open(yaml_path, 'r') as f:
                 self.waypoints = yaml.safe_load(f)['waypoints']
@@ -69,7 +69,7 @@ class WaypointInitialPoseSetter(Node):
         # publisher: 상태 ID를 publish할 토픽 (절대 경로)
         self.state_pub = self.create_publisher(
             String,
-            '/robot0/bfs/state_pose',
+            '/robot1/bfs/state_pose',
             10
         )
 
@@ -82,7 +82,7 @@ class WaypointInitialPoseSetter(Node):
         # 2) AMCL 피드백 구독 - 절대 경로 사용
         self.pose_sub = self.create_subscription(
             PoseWithCovarianceStamped,
-            '/robot0/amcl_pose',
+            '/robot1/amcl_pose',
             self.pose_callback,
             amcl_qos
         )

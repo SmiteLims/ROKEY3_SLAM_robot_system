@@ -44,14 +44,14 @@ class WaypointsFollower(Node):
         self.navigator = BasicNavigator()
         time.sleep(1.0)
         self.navigator.waitUntilNav2Active()
-        self.get_logger().info('[WaypointsFollower] Nav2 is ready.')
+        self.get_logger().info('[WaypointsFollower0] Nav2 is ready.')
 
         # 2) YAML에서 waypoint 좌표 로드
         try:
             yaml_path = os.path.join(
                 get_package_share_directory('rokey_pjt'),
                 'config',
-                'waypoints_test.yaml'
+                'waypoints_0.yaml'
             )
             with open(yaml_path, 'r') as f:
                 data = yaml.safe_load(f)
@@ -64,9 +64,9 @@ class WaypointsFollower(Node):
                 for wp in data.get('waypoints', [])
             }
             self.valid_ids = set(self.waypoint_dict.keys())
-            self.get_logger().info(f'[WaypointsFollower] Loaded {len(self.valid_ids)} waypoints from {yaml_path}')
+            self.get_logger().info(f'[WaypointsFollower0] Loaded {len(self.valid_ids)} waypoints from {yaml_path}')
         except Exception as e:
-            self.get_logger().error(f'[WaypointsFollower] Failed to load waypoints: {e}')
+            self.get_logger().error(f'[WaypointsFollower0] Failed to load waypoints: {e}')
             self.waypoint_dict = {}
             self.valid_ids = set()
 
@@ -81,7 +81,7 @@ class WaypointsFollower(Node):
             self.path_callback,
             10
         )
-        self.get_logger().info('[WaypointsFollower] Subscribed to /robot0/bfs/path')
+        self.get_logger().info('[WaypointsFollower0] Subscribed to /robot0/bfs/path')
 
     def path_callback(self, msg: String):
         """
@@ -90,25 +90,25 @@ class WaypointsFollower(Node):
         별도 스레드에서 navigator.goThroughPoses() 실행
         """
         if self.busy:
-            self.get_logger().info('[WaypointsFollower] Already navigating; ignoring new path.')
+            self.get_logger().info('[WaypointsFollower0] Already navigating; ignoring new path.')
             return
 
         raw = msg.data.strip()
         if not raw:
-            self.get_logger().warn('[WaypointsFollower] Received empty path string.')
+            self.get_logger().warn('[WaypointsFollower0] Received empty path string.')
             return
 
         waypoint_ids = [wp_id.strip() for wp_id in raw.split(',') if wp_id.strip()]
-        self.get_logger().info(f'[WaypointsFollower] Received path IDs: {waypoint_ids}')
+        self.get_logger().info(f'[WaypointsFollower0 Received path IDs: {waypoint_ids}')
 
         if len(waypoint_ids) <= 1:
-            self.get_logger().warn('[WaypointsFollower] Path length ≤ 1; no waypoints to follow.')
+            self.get_logger().warn('[WaypointsFollower0] Path length ≤ 1; no waypoints to follow.')
             return
 
         next_ids = waypoint_ids[1:]
         invalid = [wid for wid in next_ids if wid not in self.valid_ids]
         if invalid:
-            self.get_logger().error(f'[WaypointsFollower] Invalid waypoint IDs in path: {invalid}')
+            self.get_logger().error(f'[WaypointsFollower0] Invalid waypoint IDs in path: {invalid}')
             return
 
         # PoseStamped 리스트 생성
@@ -119,7 +119,7 @@ class WaypointsFollower(Node):
             poses.append(pose)
 
         if not poses:
-            self.get_logger().warn('[WaypointsFollower] No valid waypoints to navigate.')
+            self.get_logger().warn('[WaypointsFollower0] No valid waypoints to navigate.')
             return
 
         # 비동기 스레드로 네비게이션 실행
@@ -132,16 +132,16 @@ class WaypointsFollower(Node):
         별도 스레드에서 순차적으로 goThroughPoses 호출 및 결과 처리
         """
         try:
-            self.get_logger().info(f'[WaypointsFollower] Following {len(poses)} waypoints: {next_ids}')
+            self.get_logger().info(f'[WaypointsFollower0] Following {len(poses)} waypoints: {next_ids}')
             self.navigator.goThroughPoses(poses)
             result = self.navigator.waitForTaskComplete()
 
             if result == TaskResult.SUCCEEDED:
-                self.get_logger().info('[WaypointsFollower] All waypoints reached successfully.')
+                self.get_logger().info('[WaypointsFollower0] All waypoints reached successfully.')
             else:
-                self.get_logger().warn(f'[WaypointsFollower] Waypoints navigation failed (result={result}).')
+                self.get_logger().warn(f'[WaypointsFollower0] Waypoints navigation failed (result={result}).')
         except Exception as e:
-            self.get_logger().error(f'[WaypointsFollower] Navigation thread exception: {e}')
+            self.get_logger().error(f'[WaypointsFollower0] Navigation thread exception: {e}')
         finally:
             self.busy = False
 
@@ -151,7 +151,7 @@ class WaypointsFollower(Node):
             if self.busy:
                 self.navigator.cancelAllGoals()
             if self.nav_thread and self.nav_thread.is_alive():
-                self.get_logger().info('[WaypointsFollower] Waiting for navigation thread to finish...')
+                self.get_logger().info('[WaypointsFollower0] Waiting for navigation thread to finish...')
                 self.nav_thread.join(timeout=1.0)
         except Exception:
             pass

@@ -32,15 +32,15 @@ class DockController(Node):
         # 4) 0.5초 주기로 도킹/언도킹 로직을 확인하는 타이머
         self.timer = self.create_timer(0.5, self.timer_callback)
 
-        self.get_logger().info('[DockController] Initialized and waiting for state_pose & goal_pose...')
+        self.get_logger().info('[DockController0] Initialized and waiting for state_pose & goal_pose...')
 
     def state_callback(self, msg: String):
         self.state_pose = msg.data
-        self.get_logger().info(f'[DockController] state_pose <- "{self.state_pose}"')
+        self.get_logger().info(f'[DockController0] state_pose <- "{self.state_pose}"')
 
     def goal_callback(self, msg: String):
         self.goal_pose = msg.data
-        self.get_logger().info(f'[DockController] goal_pose  <- "{self.goal_pose}"')
+        self.get_logger().info(f'[DockController0] goal_pose  <- "{self.goal_pose}"')
 
     def timer_callback(self):
         # state_pose와 goal_pose가 모두 수신된 이후에만 처리
@@ -51,23 +51,23 @@ class DockController(Node):
         if self.state_pose == 'p1_0' and self.goal_pose == 'p1_0':
             # 이미 도킹 중인지 확인
             if not self.dock_navigator.getDockedStatus():
-                self.get_logger().info('[DockController] 조건 충족: state==p1_0 & goal==p1_0 → dock() 호출')
+                self.get_logger().info('[DockController0] 조건 충족: state==p1_0 & goal==p1_0 → dock() 호출')
                 self.dock_navigator.dock()
             else:
                 # 이미 도킹되어 있다면 아무 동작도 하지 않음
-                self.get_logger().debug('[DockController] 이미 도킹 상태입니다.')
+                self.get_logger().debug('[DockController0] 이미 도킹 상태입니다.')
 
         # 2) state_pose == "p1_0" and goal_pose != "p1_0" and (현재 도킹 상태라면) --> 언도킹
         elif self.state_pose == 'init_pose' and self.goal_pose != 'p1_0':
             if self.dock_navigator.getDockedStatus():
-                self.get_logger().info('[DockController] 조건 충족: state==p1_0 & goal!=p1_0 & docked → undock() 호출')
+                self.get_logger().info('[DockController0] 조건 충족: state==p1_0 & goal!=p1_0 & docked → undock() 호출')
                 self.dock_navigator.undock()
             else:
-                self.get_logger().debug('[DockController] 도킹 상태가 아닙니다. 언도킹 필요 없음.')
+                self.get_logger().debug('[DockController0] 도킹 상태가 아닙니다. 언도킹 필요 없음.')
 
         # 그 외의 경우에는 도킹/언도킹 동작하지 않음
         else:
-            self.get_logger().debug('[DockController] 도킹/언도킹 조건에 해당하지 않습니다.')
+            self.get_logger().debug('[DockController0] 도킹/언도킹 조건에 해당하지 않습니다.')
 
 
 def main(args=None):

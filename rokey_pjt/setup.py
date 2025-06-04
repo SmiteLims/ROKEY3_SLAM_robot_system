@@ -35,16 +35,16 @@ setup(
         'console_scripts': [
             'map_switcher = rokey_pjt.map_switcher:main',
             'bfs_path_finder0 = rokey_pjt.bfs_path_finder0:main',
-            'pose_publisher0 = rokey_pjt.pose_publisher0:main',
-            'dock_controller0 = rokey_pjt.dock_controller0:main',
-            'waypoints_follower0 = rokey_pjt.waypoints_follower0:main',
-            'nav0 = rokey_pjt.turtlebot4_0_nav:main',
-            'path_marker = rokey_pjt.path_marker:main',
             'bfs_path_finder1 = rokey_pjt.bfs_path_finder1:main',
+            'pose_publisher0 = rokey_pjt.pose_publisher0:main',
             'pose_publisher1 = rokey_pjt.pose_publisher1:main',
+            'dock_controller0 = rokey_pjt.dock_controller0:main',
             'dock_controller1 = rokey_pjt.dock_controller1:main',
+            'waypoints_follower0 = rokey_pjt.waypoints_follower0:main',
             'waypoints_follower1 = rokey_pjt.waypoints_follower1:main',
-            
+            'nav0 = rokey_pjt.turtlebot4_0_nav:main',
+            'path_marker0 = rokey_pjt.path_marker0:main',
+            'path_marker1 = rokey_pjt.path_marker1:main',
         ],
     },
 )
