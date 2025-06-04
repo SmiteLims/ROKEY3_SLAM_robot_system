@@ -45,6 +45,8 @@ setup(
             'nav0 = rokey_pjt.turtlebot4_0_nav:main',
             'path_marker0 = rokey_pjt.path_marker0:main',
             'path_marker1 = rokey_pjt.path_marker1:main',
+            'controller0 = rokey_pjt.controller0:main',
+            'controller1 = rokey_pjt.controller1:main',
         ],
     },
 )
