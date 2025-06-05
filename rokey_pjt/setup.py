@@ -43,6 +43,7 @@ setup(
             'waypoints_follower0 = rokey_pjt.waypoints_follower0:main',
             'waypoints_follower1 = rokey_pjt.waypoints_follower1:main',
             'nav0 = rokey_pjt.turtlebot4_0_nav:main',
+            'nav1 = rokey_pjt.turtlebot4_1_nav:main',
             'path_marker0 = rokey_pjt.path_marker0:main',
             'path_marker1 = rokey_pjt.path_marker1:main',
             'controller0 = rokey_pjt.controller0:main',
