@@ -99,7 +99,7 @@ class WaypointInitialPoseSetter(Node):
         self.get_logger().info(f"초기 위치 설정 중... → ({target['x']:.2f}, {target['y']:.2f}, yaw: {target['yaw']} deg)")
 
         # AMCL & TF 안정화 대기
-        time.sleep(2.0)
+        time.sleep(10.0)
         self.navigator.waitUntilNav2Active()
         self.get_logger().info("Nav2 활성화 완료. 초기 pose 설정 끝.")
 

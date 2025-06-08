@@ -24,7 +24,7 @@ class WaypointMarkerPublisher(Node):
             yaml_path = os.path.join(
                 get_package_share_directory('rokey_pjt'),
                 'config',
-                'waypoints_1.yaml'
+                'new_waypoints.yaml'
             )
             with open(yaml_path, 'r') as f:
                 data = yaml.safe_load(f)
@@ -74,7 +74,7 @@ class WaypointMarkerPublisher(Node):
             text.pose.position.z = 0.4
             text.scale.z = 0.2
             text.text = wp['id']
-            text.color = ColorRGBA(r=1.0, g=1.0, b=1.0, a=1.0)
+            text.color = ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0)
             marker_array.markers.append(text)
 
         # ── (2) 연결선(LINE_LIST) 마커 ─────────────────────

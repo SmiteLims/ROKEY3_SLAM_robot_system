@@ -47,6 +47,8 @@ setup(
             'path_marker1 = rokey_pjt.path_marker1:main',
             'controller0 = rokey_pjt.controller0:main',
             'controller1 = rokey_pjt.controller1:main',
+            'waypoint_saver = rokey_pjt.waypoint_saver:main',
+                    
         ],
     },
 )

@@ -1,54 +1,30 @@
 waypoints:
   - id: init_pose
-    x: 6.2895
-    y: 3.05263
-    yaw: -0.146699
+    x: 6.196
+    y: 1.860
+    yaw: -0.7448
     neighbors: [p1_0]
 
   - id: p1_0
-    x: 6.07259
-    y: 2.99751
-    yaw: 3.14066
+    x: 5.652
+    y: 1.808
+    yaw: -179.5076
     neighbors: [init_pose, p1_1]
 
   - id: p1_1
-    x: 4.10092
-    y: 3.35907
-    yaw: -3.10932
+    x: 4.454
+    y: 1.735
+    yaw: -176.8147
     neighbors: [p1_0, p1_2]
 
   - id: p1_2
-    x: 3.41852
-    y: 3.47976
-    yaw: -3.10017
-    neighbors: [p1_1, p2_0]
+    x: 4.321
+    y: 1.590
+    yaw: -94.1942
+    neighbors: [p1_1, p1_3]
 
-  - id: p2_0
-    x: 3.41852
-    y: 3.47976
-    yaw: -3.10017
-    neighbors: [p1_2, p2_1]
-
-  - id: p2_1
-    x: 2.54174
-    y: 3.16344
-    yaw: 3.11363
-    neighbors: [p2_0, p2_2, p2_3]
-
-  - id: p2_2
-    x: 1.29196
-    y: 3.0098
-    yaw: 3.06239
-    neighbors: [p2_1]
-
-  - id: p2_3
-    x: 2.57764
-    y: 4.95708
-    yaw: 1.55816
-    neighbors: [p2_1, p2_4]
-
-  - id: p2_4
-    x: 1.52014
-    y: 5.21401
-    yaw: 3.06239
-    neighbors: [p2_3]
+  - id: p1_3
+    x: 4.969
+    y: 0.593
+    yaw: 1.03132
+    neighbors: [p1_2]

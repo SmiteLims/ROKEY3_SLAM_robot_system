@@ -31,5 +31,12 @@ def generate_launch_description():
             namespace='robot0',
             output='screen'
         ),
+        Node(
+            package='rokey_pjt',
+            executable='controller0',
+            name='controller0',
+            namespace='robot0',
+            output='screen'
+        ),
     ])
 
